@@ -51,7 +51,7 @@ cp .env.example .env
 | `DB_HOST` | RDS 엔드포인트 |
 | `DB_PORT` | 3306 |
 | `DB_USER` / `DB_PASSWORD` | MySQL 계정 |
-| `DB_NAME` | 기본 `debate_studio` (공유 DB면 수업 DB명) |
+| `DB_NAME` | 기본 `debate_studio` (공유 DB) |
 
 > `dotenv`는 `src/index.js` 최상단에서 로드됩니다. `require('./lambdaClient')`가 import time에 환경변수를 읽기 때문에 순서를 바꾸지 마세요.
 
