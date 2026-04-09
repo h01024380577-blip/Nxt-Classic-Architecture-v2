@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 const ACTION_LABELS = {
   opening:          { icon: '▶️', label: '오프닝' },
   rebuttal:         { icon: '🔁', label: '반박' },
@@ -11,7 +9,6 @@ const ACTION_LABELS = {
 const ACTION_ORDER = ['opening', 'rebuttal', 'example', 'counter_rebuttal', 'closing', 'conclude'];
 
 export function MainScreen({ session, currentTurn, onAction, onConclude, busy, error }) {
-  const [chosenSide, setChosenSide] = useState(null);
   const available = new Set(session.availableActions);
 
   function handleClick(action) {
