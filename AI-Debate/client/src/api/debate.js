@@ -1,4 +1,4 @@
-const BASE = '/api/debate';
+const BASE = (process.env.REACT_APP_API_BASE || '') + '/api/debate';
 
 async function jsonPost(path, body) {
   const res = await fetch(BASE + path, {

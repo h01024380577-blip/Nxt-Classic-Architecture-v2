@@ -26,10 +26,17 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: var(--bg-0);
   color: var(--text-1);
   font-family: var(--sans);
   min-height: 100vh;
+}
+
+/* Debate stage background — fixed, covers viewport, dark overlay for text legibility */
+body {
+  background:
+    linear-gradient(rgba(13, 13, 18, 0.72), rgba(13, 13, 18, 0.88)),
+    url('./assets/stage-bg.png') center center / cover no-repeat fixed;
+  background-color: var(--bg-0); /* fallback before image loads */
 }
 
 .app-shell {
