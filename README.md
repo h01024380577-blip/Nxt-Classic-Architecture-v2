@@ -102,28 +102,11 @@ Nxt-Classic-Architecture-v2/
 │   ├── server/           Express — API, 상태머신, DB
 │   ├── gemini-lambda/    Node.js Lambda — Google Gemini
 │   ├── bedrock-lambda/   Python Lambda — AWS Bedrock Nova
-│   └── DropTable.md      DB 수동 리셋 스니펫
+│   
 └── README.md             (이 파일)
 ```
 
 각 하위 디렉터리에 자체 README가 있습니다. 전체 맥락을 보려면 **이 파일 → server → client → gemini-lambda → bedrock-lambda** 순서 권장.
-
----
-
-## 🔑 환경 변수 요약
-
-| 위치 | 변수 | 설명 |
-|------|------|------|
-| `AI-Debate/server/.env` | `PORT` | Express 포트 (기본 4000) |
-| `AI-Debate/server/.env` | `GEMINI_LAMBDA_URL` | Gemini Lambda Function URL |
-| `AI-Debate/server/.env` | `BEDROCK_LAMBDA_URL` | Bedrock Nova Lambda Function URL |
-| `AI-Debate/server/.env` | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | RDS 접속 정보 |
-| `AI-Debate/client` (빌드 시) | `REACT_APP_API_BASE` | 빌드 시 박히는 절대 API 주소 (예: `http://54.163.49.191:4000`). 비우면 상대경로로 동작 (로컬 dev proxy용) |
-| Lambda Console (gemini-lambda) | `GEMINI_API_KEY` | Google AI Studio API 키 |
-| Lambda Console (gemini-lambda) | `GEMINI_MODEL` | 기본 `gemini-2.5-flash` |
-| Lambda Console (bedrock-lambda) | `BEDROCK_MODEL_ID` | 기본 `amazon.nova-lite-v1:0` |
-
-`.env`는 `.gitignore`에 의해 저장소에서 제외됩니다. **절대 커밋하지 마세요.**
 
 ---
 
