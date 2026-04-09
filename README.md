@@ -1,4 +1,4 @@
-# AI Debate Studio
+# AI Debate
 
 > **한 줄 설명**: 두 AI 모델(Google Gemini · AWS Bedrock Nova)이 같은 주제로 토론하고 사용자가 승자를 고르면 누적 승률이 집계되는 3-Tier + Serverless 웹 애플리케이션.
 
