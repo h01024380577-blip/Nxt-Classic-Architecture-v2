@@ -84,10 +84,21 @@ function createRouter({ invokeLambda, db }) {
       });
     } catch (err) {
       console.error('[debate.turn] lambda error', err);
-      return res.status(503).json({ error: 'AI 응답 생성 중 문제가 발생했습니다. 다시 시도해주세요.' });
+      const detail = err.message.includes('timeout') ? ' (시간 초과)'
+        : err.message.includes('429') ? ' (요청 한도 초과)'
+        : err.message.includes('not configured') ? ' (Lambda URL 미설정)'
+        : '';
+      return res.status(503).json({
+        error: `AI 응답 생성 중 문제가 발생했습니다${detail}. 다시 시도해주세요.`
+      });
     }
 
-    addTurn(s.id, { side: speakerSide, action, content });
+    try {
+      addTurn(s.id, { side: speakerSide, action, content });
+    } catch (err) {
+      console.error('[debate.turn] state transition error', err);
+      return res.status(500).json({ error: '서버 내부 상태 오류가 발생했습니다.' });
+    }
 
     return res.json({
       speaker: {

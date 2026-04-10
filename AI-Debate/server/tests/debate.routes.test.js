@@ -106,3 +106,126 @@ test('GET /results returns recent rows + stats', async () => {
   assert.strictEqual(res.status, 200);
   assert.deepStrictEqual(Object.keys(res.body).sort(), ['recent', 'stats']);
 });
+
+// ── rebuttal / counter_rebuttal flow ──────────────────────────
+
+test('full debate flow: opening → rebuttal → counter_rebuttal → closing', async () => {
+  _reset();
+  const calls = [];
+  const app = buildApp({
+    invokeLambda: async (args) => {
+      calls.push(args);
+      return `${args.persona.name}: ${args.action}`;
+    },
+    db: fakeDb
+  });
+  const start = await request(app).post('/api/debate/start').send({
+    topic: '아침 식사', positionA: '빵', positionB: '밥'
+  });
+  const sid = start.body.sessionId;
+
+  // 1. Opening A
+  let r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'A_opened');
+  assert.strictEqual(r.body.speaker.side, 'A');
+
+  // 2. Opening B
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'B_opened');
+  assert.strictEqual(r.body.speaker.side, 'B');
+  assert.ok(r.body.availableActions.includes('rebuttal'));
+  assert.ok(r.body.availableActions.includes('counter_rebuttal'));
+
+  // 3. Rebuttal — A speaks, enters mid
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'rebuttal' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'mid');
+  assert.strictEqual(r.body.speaker.side, 'A');
+  assert.strictEqual(r.body.turnCount, 3);
+
+  // 4. Counter-rebuttal — B speaks, stays mid
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'counter_rebuttal' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'mid');
+  assert.strictEqual(r.body.speaker.side, 'B');
+  assert.strictEqual(r.body.turnCount, 4);
+
+  // 5. Verify Lambda was called with growing history
+  assert.strictEqual(calls[0].history.length, 0); // opening A — no prior history
+  assert.strictEqual(calls[1].history.length, 1); // opening B — sees A's opening
+  assert.strictEqual(calls[2].history.length, 2); // rebuttal A — sees both openings
+  assert.strictEqual(calls[2].action, 'rebuttal');
+  assert.strictEqual(calls[3].history.length, 3); // counter A — sees 2 openings + 1 rebuttal
+  assert.strictEqual(calls[3].action, 'counter_rebuttal');
+
+  // 6. Close A then B → ready_to_conclude
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'closing' });
+  assert.strictEqual(r.status, 200);
+  // Speaker alternates: last was B (counter_rebuttal), so now A closes
+  assert.strictEqual(r.body.speaker.side, 'A');
+
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'closing' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'ready_to_conclude');
+});
+
+test('Lambda failure during rebuttal does not corrupt session — retry succeeds', async () => {
+  _reset();
+  let shouldFail = false;
+  const app = buildApp({
+    invokeLambda: async () => {
+      if (shouldFail) throw new Error('Lambda timeout');
+      return 'ok';
+    },
+    db: fakeDb
+  });
+  const start = await request(app).post('/api/debate/start').send({
+    topic: 't', positionA: 'a', positionB: 'b'
+  });
+  const sid = start.body.sessionId;
+
+  // Two successful openings
+  await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });
+  await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });
+
+  // Rebuttal fails
+  shouldFail = true;
+  let r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'rebuttal' });
+  assert.strictEqual(r.status, 503);
+  assert.match(r.body.error, /시간 초과/);
+
+  // State should still be B_opened — retry should work
+  shouldFail = false;
+  r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'rebuttal' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.state, 'mid');
+  assert.strictEqual(r.body.speaker.side, 'A');
+});
+
+test('Lambda failure during counter_rebuttal returns 503 with detail', async () => {
+  _reset();
+  let callCount = 0;
+  const app = buildApp({
+    invokeLambda: async () => {
+      callCount++;
+      if (callCount > 3) throw new Error('Lambda 429: rate limited');
+      return 'content';
+    },
+    db: fakeDb
+  });
+  const start = await request(app).post('/api/debate/start').send({
+    topic: 't', positionA: 'a', positionB: 'b'
+  });
+  const sid = start.body.sessionId;
+
+  await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });  // 1
+  await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'opening' });  // 2
+  await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'rebuttal' }); // 3
+
+  // counter_rebuttal triggers the 4th call → fails
+  const r = await request(app).post(`/api/debate/${sid}/turn`).send({ action: 'counter_rebuttal' });
+  assert.strictEqual(r.status, 503);
+  assert.match(r.body.error, /요청 한도 초과/);
+});
